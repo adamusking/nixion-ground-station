@@ -14,7 +14,7 @@ if not lora.begin():
     raise Exception("Something wrong, can't begin LoRa radio")
 
 # Set frequency to 866 MHz
-print("Set frequency to 866 MHz")
+print("Set frequency to 869.525 MHz")
 lora.setFrequency(869525000)
 
 # Set RX gain. RX gain options are power saving gain or boosted gain
