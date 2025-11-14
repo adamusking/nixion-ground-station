@@ -8,7 +8,9 @@ from dotenv import load_dotenv
 from paho.mqtt import client as mqtt_client
 from lora_test import receive_packets, lora
 
-load_dotenv()
+env_path = "/home/nixctrl/cansat/nixion-ground-station/test_code/.env"
+
+load_dotenv(env_path)
 
 broker = os.getenv("BROKER")
 port = int(os.getenv("PORT"))
@@ -22,9 +24,9 @@ header_names = ["time","packetID","temperature","humidity","pressure","altitude"
                 "battery","lora_rssi","lora_snr","lora_data_rate","lora_transmit_time","lora_status",
                 "received_packets","lost_packets","azimuth","elevation"]
 
-file_exists = os.path.isfile('data.csv')
+file_exists = os.path.isfile('/srv/ftp/data/data_local.csv')
 if not file_exists:
-    with open('data.csv', 'w', newline='') as csvfile:
+    with open('/srv/ftp/data/data_local.csv', 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=header_names)
         writer.writeheader()
 
@@ -64,7 +66,7 @@ def main():
     client = connect_mqtt()
     client.loop_start()
 
-    telemetry_format = '<H H H L H H L L L L B'
+    telemetry_format = '<H H H H H H L L L L B'
     telemetry_size = struct.calcsize(telemetry_format)
     msg_count = 1
     global received_packets, lost_packets, last_packet_id, lora_status
@@ -121,10 +123,13 @@ Battery: {battery} %
 
         if last_packet_id is None:
             received_packets += 1
+            last_packet_id = packetID
         else:
-            lost_packets += max(0, packetID - last_packet_id - 1)
+            gap = packetID - last_packet_id - 1
+            if gap > 0:
+                lost_packets += gap
             received_packets += 1
-        last_packet_id = packetID
+            last_packet_id = packetID
 
         data = {
             "time": receive_time,
@@ -150,13 +155,13 @@ Battery: {battery} %
             "elevation": round(random.uniform(-10, 90), 2)
         }
 
-        with open('data.csv', 'a', newline='') as csvfile:
+        with open('/srv/ftp/data/data_local.csv', 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=header_names)
             writer.writerow(data)
 
         publish_mqtt(client, data, msg_count)
         msg_count += 1
-        time.sleep(1)
+        
 
 if __name__ == "__main__":
     main()
