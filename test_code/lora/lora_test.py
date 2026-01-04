@@ -14,8 +14,8 @@ if not lora.begin():
     raise Exception("Something wrong, can't begin LoRa radio")
 
 # Set frequency to 866 MHz
-print("Set frequency to 869.525 MHz")
-lora.setFrequency(869525000)
+print("Set frequency to 867.525 MHz")
+lora.setFrequency(867525000)
 
 # Set RX gain. RX gain options are power saving gain or boosted gain
 print("Set RX gain to boosted gain")
@@ -25,15 +25,15 @@ print("Set TX power to +17 dBm")
 lora.setTxPower(17, lora.TX_POWER_PA_BOOST)
 
 # Configure modulation parameters
-print("Set modulation parameters:\n\tSpreading factor = 7\n\tBandwidth = 125 kHz\n\tCoding rate = 4/5")
+print("Set modulation parameters:\n\tSpreading factor = 7\n\tBandwidth = 500 kHz\n\tCoding rate = 4/5")
 lora.setSpreadingFactor(7)
-lora.setBandwidth(125000)
+lora.setBandwidth(500000)
 lora.setCodeRate(5)
 
 # Configure packet parameters
-print("Set packet parameters:\n\tExplicit header type\n\tPreamble length = 12\n\tPayload Length = 60\n\tCRC on")
+print("Set packet parameters:\n\tExplicit header type\n\tPreamble length = 8\n\tPayload Length = 60\n\tCRC on")
 lora.setHeaderType(lora.HEADER_EXPLICIT)
-lora.setPreambleLength(12)
+lora.setPreambleLength(8)
 lora.setPayloadLength(60)
 lora.setCrcEnable(True)
 

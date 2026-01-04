@@ -3,18 +3,19 @@ import os
 import csv
 import json
 import struct
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from paho.mqtt import client as mqtt_client
 from lora_test import receive_packets, lora
 
 env_path = "/home/nixctrl/cansat/nixion-ground-station/test_code/.env"
+csv_path = "/srv/ftp/data/local_data.csv"
 
 load_dotenv(env_path)
 
 broker = os.getenv("BROKER")
 port = int(os.getenv("PORT"))
-topic = os.getenv("TOPIC")
+telemetry_topic = os.getenv("TELEMETRY_TOPIC")
 client_id = os.getenv("CLIENT_ID_1")
 username = os.getenv("MQTT_USER")       
 password = os.getenv("MQTT_PASSWORD")   
@@ -22,11 +23,11 @@ password = os.getenv("MQTT_PASSWORD")
 header_names = ["time","packetID","temperature","humidity","pressure","altitude","speed",
                 "latitude_cansat","longitude_cansat","latitude_ground","longitude_ground",
                 "battery","lora_rssi","lora_snr","lora_data_rate","lora_transmit_time","lora_status",
-                "received_packets","lost_packets","azimuth","elevation"]
+                "received_packets","lost_packets"]
 
-file_exists = os.path.isfile('/srv/ftp/data/data_local.csv')
+file_exists = os.path.isfile(csv_path)
 if not file_exists:
-    with open('/srv/ftp/data/data_local.csv', 'w', newline='') as csvfile:
+    with open(csv_path, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=header_names)
         writer.writeheader()
 
@@ -51,16 +52,16 @@ def connect_mqtt():
     client.connect(broker, port)
     return client
 
-def publish_mqtt(client, data, msg_count):
+def publish_telemetry(client, data, msg_count):
     if connected:
         data_json = json.dumps(data)
-        result = client.publish(topic, data_json)
+        result = client.publish(telemetry_topic, data_json)
         status = result[0]
         if status == 0:
-            print("\n---Publishing to MQTT---")
-            print(f"Sent message #{msg_count} to topic `{topic}`")
+            print("\n---Publishing Telemetry to MQTT---")
+            print(f"Sent message #{msg_count} to topic `{telemetry_topic}`") 
         else:
-            print(f"Failed to send message to topic {topic}")
+            print(f"Failed to send message to topic {telemetry_topic}")
 
 def main():
     client = connect_mqtt()
@@ -72,13 +73,13 @@ def main():
     global received_packets, lost_packets, last_packet_id, lora_status
 
     while True:
-        print("\n---RECEIVING---")
+        print("-----------------------------------------------------")
+        print("---RECEIVING---")
         raw_data = receive_packets()
         byte_array = bytearray(raw_data)
         print(f"Bytearray: {byte_array}")
 
-        now = datetime.now()
-        receive_time = now.isoformat()
+        timestamp = datetime.now(timezone(timedelta(hours=1)) ).isoformat()
         lora_status = 1
 
         unpacked = struct.unpack(telemetry_format, byte_array[:telemetry_size])
@@ -111,7 +112,7 @@ Battery: {battery} %
         ack = f"ACK{int(packetID)}"
         ack_list = [ord(c) for c in ack]
 
-        print("\n---TRANSMITTING ACK---")
+        print("---TRANSMITTING ACK---")
         time.sleep(0.5)
         lora.beginPacket()
         lora.write(ack_list, len(ack_list))
@@ -132,7 +133,7 @@ Battery: {battery} %
             last_packet_id = packetID
 
         data = {
-            "time": receive_time,
+            "time": timestamp,
             "packetID": packetID,
             "temperature": temperature,
             "humidity": humidity,
@@ -150,16 +151,15 @@ Battery: {battery} %
             "lora_transmit_time": lora.transmitTime(),
             "lora_status": lora_status,
             "received_packets": received_packets,
-            "lost_packets": lost_packets,
-            "azimuth": round(random.uniform(0, 360), 2),
-            "elevation": round(random.uniform(-10, 90), 2)
+            "lost_packets": lost_packets
         }
 
-        with open('/srv/ftp/data/data_local.csv', 'a', newline='') as csvfile:
+        
+        with open(csv_path, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=header_names)
             writer.writerow(data)
 
-        publish_mqtt(client, data, msg_count)
+        publish_telemetry(client, data, msg_count)
         msg_count += 1
         
 
